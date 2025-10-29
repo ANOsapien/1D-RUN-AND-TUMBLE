@@ -3,19 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>1D Run-and-Tumble Simulation</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <title>1D Run-and-Tumble Space-Time Simulation</title>
   <style>
     body {
-      font-family: sans-serif;
+      font-family: system-ui, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 20px;
       background: #fafafa;
+      margin: 0;
+      padding: 20px;
     }
-    h1 { margin-bottom: 10px; }
-    .controls, .sliders { margin: 10px 0; text-align: center; }
+    h1 { margin: 0 0 10px; }
     .lattice {
       position: relative;
       width: 90%;
@@ -24,7 +23,7 @@
       background: #eee;
       border: 1px solid #999;
       border-radius: 5px;
-      margin-bottom: 20px;
+      margin: 10px 0 20px;
     }
     .particle {
       position: absolute;
@@ -35,7 +34,17 @@
     }
     .p1 { background: #007bff; }
     .p2 { background: #ff5050; }
-    canvas { max-width: 90%; height: 300px; }
+    canvas {
+      border: 1px solid #999;
+      margin-bottom: 15px;
+      image-rendering: pixelated;
+    }
+    .sliders, .controls { margin: 10px 0; text-align: center; }
+    input[type=range] { width: 250px; }
+    button { margin: 0 5px; padding: 6px 12px; border: none; border-radius: 4px; color: #fff; }
+    #startBtn { background: #28a745; }
+    #stopBtn { background: #dc3545; }
+    #resetBtn { background: #6c757d; }
   </style>
 </head>
 <body>
@@ -46,7 +55,7 @@
     <div class="particle p2" id="p2"></div>
   </div>
 
-  <canvas id="chart"></canvas>
+  <canvas id="spacetime" width="600" height="300"></canvas>
 
   <div class="sliders">
     <label>
@@ -73,7 +82,6 @@
     let positions = [0, L / 2];
     let velocities = [1, -1];
     let time = 0;
-    let history = [];
 
     const p1 = document.getElementById("p1");
     const p2 = document.getElementById("p2");
@@ -82,45 +90,43 @@
     const Lval = document.getElementById("Lval");
     const omegaVal = document.getElementById("omegaVal");
 
-    const ctx = document.getElementById("chart").getContext("2d");
-    const chart = new Chart(ctx, {
-      type: "line",
-      data: { datasets: [
-        { label: "Particle 1", data: [], borderColor: "#007bff", borderWidth: 1.5, pointRadius: 0 },
-        { label: "Particle 2", data: [], borderColor: "#ff5050", borderWidth: 1.5, pointRadius: 0 }
-      ]},
-      options: {
-        animation: false,
-        scales: {
-          x: { type: "linear", title: { display: true, text: "Time" } },
-          y: { min: 0, max: L, title: { display: true, text: "Position (mod L)" } }
-        }
-      }
-    });
+    const canvas = document.getElementById("spacetime");
+    const ctx = canvas.getContext("2d");
+    const width = canvas.width, height = canvas.height;
+    let yRow = height - 1; // bottom to top scroll
+
+    function drawRow() {
+      // Scroll up one pixel row
+      const img = ctx.getImageData(0, 1, width, height - 1);
+      ctx.putImageData(img, 0, 0);
+      // Clear bottom line
+      ctx.clearRect(0, height - 1, width, 1);
+
+      // Draw new frame at bottom
+      const x1 = Math.floor((positions[0] % L) / L * width);
+      const x2 = Math.floor((positions[1] % L) / L * width);
+      ctx.fillStyle = "#007bff";
+      ctx.fillRect(x1, height - 1, 1, 1);
+      ctx.fillStyle = "#ff5050";
+      ctx.fillRect(x2, height - 1, 1, 1);
+    }
 
     function updateParticles() {
       const lat = document.getElementById("lattice");
-      const width = lat.offsetWidth;
-      p1.style.left = ((positions[0] % L) / L) * width + "px";
-      p2.style.left = ((positions[1] % L) / L) * width + "px";
+      const w = lat.offsetWidth;
+      p1.style.left = ((positions[0] % L) / L) * w + "px";
+      p2.style.left = ((positions[1] % L) / L) * w + "px";
     }
 
     function step() {
       if (!running) return;
-      // tumble
       for (let i = 0; i < 2; i++) {
         if (Math.random() < omega * dt) velocities[i] *= -1;
       }
-      // propose new positions
-      let prop = positions.map((p, i) => (p + velocities[i] * gamma * dt * 2 + L) % L);
-      // avoid overlap
+      const prop = positions.map((p, i) => (p + velocities[i] * gamma * dt * 2 + L) % L);
       if (Math.round(prop[0]) !== Math.round(prop[1])) positions = prop;
       time += dt;
-      history.push({ t: time, x1: positions[0], x2: positions[1] });
-      if (history.length > 400) history.shift();
-      chart.data.datasets[0].data = history.map(h => ({ x: h.t, y: h.x1 % L }));
-      chart.data.datasets[1].data = history.map(h => ({ x: h.t, y: h.x2 % L }));
-      chart.update();
+      drawRow();
       updateParticles();
       requestAnimationFrame(step);
     }
@@ -129,20 +135,17 @@
     function stop() { running = false; }
     function reset() {
       running = false;
+      ctx.clearRect(0, 0, width, height);
       positions = [0, L / 2];
       velocities = [1, -1];
       time = 0;
-      history = [];
-      chart.data.datasets.forEach(d => d.data = []);
-      chart.update();
       updateParticles();
     }
 
     document.getElementById("startBtn").onclick = start;
     document.getElementById("stopBtn").onclick = stop;
     document.getElementById("resetBtn").onclick = reset;
-
-    Lslider.oninput = e => { L = +e.target.value; Lval.textContent = L; chart.options.scales.y.max = L; reset(); };
+    Lslider.oninput = e => { L = +e.target.value; Lval.textContent = L; reset(); };
     omegaSlider.oninput = e => { omega = +e.target.value; omegaVal.textContent = omega; reset(); };
 
     updateParticles();
