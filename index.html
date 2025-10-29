@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>1D Run-and-Tumble Space-Time Simulation</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #fafafa;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 { margin: 0 0 10px; }
+    .lattice {
+      position: relative;
+      width: 90%;
+      max-width: 600px;
+      height: 20px;
+      background: #eee;
+      border: 1px solid #999;
+      border-radius: 5px;
+      margin: 10px 0 20px;
+    }
+    .particle {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      top: 4px;
+    }
+    .p1 { background: #007bff; }
+    .p2 { background: #ff5050; }
+    canvas {
+      border: 1px solid #999;
+      margin-bottom: 15px;
+      image-rendering: pixelated;
+    }
+    .sliders, .controls { margin: 10px 0; text-align: center; }
+    input[type=range] { width: 250px; }
+    button { margin: 0 5px; padding: 6px 12px; border: none; border-radius: 4px; color: #fff; }
+    #startBtn { background: #28a745; }
+    #stopBtn { background: #dc3545; }
+    #resetBtn { background: #6c757d; }
+  </style>
+</head>
+<body>
+  <h1>1D Run-and-Tumble Simulation</h1>
+
+  <div class="lattice" id="lattice">
+    <div class="particle p1" id="p1"></div>
+    <div class="particle p2" id="p2"></div>
+  </div>
+
+  <canvas id="spacetime" width="600" height="300"></canvas>
+
+  <div class="sliders">
+    <label>
+      Lattice size (L): <span id="Lval">50</span>
+      <input type="range" id="L" min="10" max="200" step="1" value="50">
+    </label>
+    <br>
+    <label>
+      Tumble rate (ω): <span id="omegaVal">0.01</span>
+      <input type="range" id="omega" min="0.0001" max="0.1" step="0.0001" value="0.01">
+    </label>
+  </div>
+
+  <div class="controls">
+    <button id="startBtn">Start</button>
+    <button id="stopBtn">Stop</button>
+    <button id="resetBtn">Reset</button>
+  </div>
+
+  <script>
+    // --- Parameters ---
+    let L = 50, omega = 0.01, gamma = 1.0, dt = 0.05;
+    let running = false;
+    let positions = [0, L / 2];
+    let velocities = [1, -1];
+    let time = 0;
+
+    const p1 = document.getElementById("p1");
+    const p2 = document.getElementById("p2");
+    const Lslider = document.getElementById("L");
+    const omegaSlider = document.getElementById("omega");
+    const Lval = document.getElementById("Lval");
+    const omegaVal = document.getElementById("omegaVal");
+
+    const canvas = document.getElementById("spacetime");
+    const ctx = canvas.getContext("2d");
+    const width = canvas.width, height = canvas.height;
+    let yRow = height - 1; // bottom to top scroll
+
+    function drawRow() {
+      // Scroll up one pixel row
+      const img = ctx.getImageData(0, 1, width, height - 1);
+      ctx.putImageData(img, 0, 0);
+      // Clear bottom line
+      ctx.clearRect(0, height - 1, width, 1);
+
+      // Draw new frame at bottom
+      const x1 = Math.floor((positions[0] % L) / L * width);
+      const x2 = Math.floor((positions[1] % L) / L * width);
+      ctx.fillStyle = "#007bff";
+      ctx.fillRect(x1, height - 1, 1, 1);
+      ctx.fillStyle = "#ff5050";
+      ctx.fillRect(x2, height - 1, 1, 1);
+    }
+
+    function updateParticles() {
+      const lat = document.getElementById("lattice");
+      const w = lat.offsetWidth;
+      p1.style.left = ((positions[0] % L) / L) * w + "px";
+      p2.style.left = ((positions[1] % L) / L) * w + "px";
+    }
+
+    function step() {
+      if (!running) return;
+      for (let i = 0; i < 2; i++) {
+        if (Math.random() < omega * dt) velocities[i] *= -1;
+      }
+      const prop = positions.map((p, i) => (p + velocities[i] * gamma * dt * 2 + L) % L);
+      if (Math.round(prop[0]) !== Math.round(prop[1])) positions = prop;
+      time += dt;
+      drawRow();
+      updateParticles();
+      requestAnimationFrame(step);
+    }
+
+    function start() { if (!running) { running = true; requestAnimationFrame(step); } }
+    function stop() { running = false; }
+    function reset() {
+      running = false;
+      ctx.clearRect(0, 0, width, height);
+      positions = [0, L / 2];
+      velocities = [1, -1];
+      time = 0;
+      updateParticles();
+    }
+
+    document.getElementById("startBtn").onclick = start;
+    document.getElementById("stopBtn").onclick = stop;
+    document.getElementById("resetBtn").onclick = reset;
+    Lslider.oninput = e => { L = +e.target.value; Lval.textContent = L; reset(); };
+    omegaSlider.oninput = e => { omega = +e.target.value; omegaVal.textContent = omega; reset(); };
+
+    updateParticles();
+  </script>
+</body>
+</html>
