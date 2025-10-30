@@ -18,7 +18,7 @@
     .lattice {
       position: relative;
       width: 90%;
-      max-width: 600px;
+      max-width: 400px;
       height: 20px;
       background: #eee;
       border: 1px solid #999;
@@ -55,17 +55,17 @@
     <div class="particle p2" id="p2"></div>
   </div>
 
-  <canvas id="spacetime" width="600" height="300"></canvas>
+  <canvas id="spacetime" width="400" height="500"></canvas>
 
   <div class="sliders">
     <label>
       Lattice size (L): <span id="Lval">50</span>
-      <input type="range" id="L" min="10" max="200" step="1" value="50">
+      <input type="range" id="L" min="10" max="300" step="1" value="50">
     </label>
     <br>
     <label>
       Tumble rate (ω): <span id="omegaVal">0.01</span>
-      <input type="range" id="omega" min="0.0001" max="0.1" step="0.0001" value="0.01">
+      <input type="range" id="omega" min="0.001" max="5" step="0.001" value="0.01">
     </label>
   </div>
 

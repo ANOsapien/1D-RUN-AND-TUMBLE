@@ -59,17 +59,37 @@ def simulate_two_run_tumble(L=1000, gamma=1.0, omega=0.01, t_max=150.0, seed=Non
     return np.array(times), np.array(pos1), np.array(pos2), np.array(vel1), np.array(vel2), L
 
 # ---------- Space-time plot ----------
-def make_spacetime_plot(times, x1, x2, L, savepath):
-    fig, ax = plt.subplots(figsize=(5,8))
-    y = -times
-    x1_mod = (x1 % L)
-    x2_mod = (x2 % L)
+def make_two_particle_spacetime_plot(times, x1, x2, L, savepath):
+    """
+    Space-time plot for two particles with periodic boundaries.
+    Removes horizontal wrap lines when particles cross the boundary.
+    """
+    fig, ax = plt.subplots(figsize=(5, 8))
+    y = times
 
-    ax.plot(x1_mod, y, '-', lw=1.5, label='particle 1')
-    ax.plot(x2_mod, y, '--', lw=1.5, label='particle 2')
+    # Function to handle wrap breaks
+    def clean_wraps(x, L):
+        x_mod = np.mod(x, L)
+        x_plot = x_mod.astype(float)
+        y_plot = y.astype(float)
+        jumps = np.abs(np.diff(x_mod))
+        bad = np.where(jumps > L / 2)[0]
+        for j in bad[::-1]:
+            x_plot = np.insert(x_plot, j + 1, np.nan)
+            y_plot = np.insert(y_plot, j + 1, np.nan)
+        return x_plot, y_plot
+
+    # Cleaned positions
+    x1_plot, y1_plot = clean_wraps(x1, L)
+    x2_plot, y2_plot = clean_wraps(x2, L)
+
+    # Plot
+    ax.plot(x1_plot, y1_plot, '-', lw=1.5, label='particle 1')
+    ax.plot(x2_plot, y2_plot, '--', lw=1.5, label='particle 2')
+
     ax.set_xlim(0, L)
-    ax.set_ylim(-times.max(), 0)
-    ax.set_xlabel('Position')
+    ax.set_ylim(times.max(), 0)
+    ax.set_xlabel('Position (mod L)')
     ax.set_ylabel('Time (downward)')
     ax.set_title('Space-time plot')
     ax.invert_yaxis()
@@ -128,12 +148,12 @@ def parameter_sweep():
     outdir = "outputs"
     os.makedirs(outdir, exist_ok=True)
 
-    omega_values = [0.001, 0.01, 0.05, 0.1]
+    omega_values = [0.001, 0.05, 0.1, 0.5, 1000]
     for omega in omega_values:
         print(f"Running ω={omega} ...")
         times, x1, x2, v1, v2, L = simulate_two_run_tumble(
             L=L, gamma=gamma, omega=omega, t_max=t_max, seed=seed)
-        make_spacetime_plot(times, x1, x2, L, savepath=f"{outdir}/spacetime_omega{omega:.3f}.png")
+        make_two_particle_spacetime_plot(times, x1, x2, L, savepath=f"{outdir}/spacetime_omega{omega:.3f}.png")
         make_animation(times, x1, x2, L, savepath=f"{outdir}/animation_omega{omega:.3f}.mp4")
 
 if __name__ == "__main__":
